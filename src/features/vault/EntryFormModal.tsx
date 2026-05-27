@@ -1,14 +1,27 @@
 import { Eye, EyeOff, WandSparkles } from 'lucide-react'
-import { useState } from 'react'
-import { useId } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { CopyButton } from '../../components/CopyButton'
-import { Modal } from '../../components/Modal'
 import type { DecryptedEntry, DecryptedFolder } from '../../types'
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '../../components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface EntryFormModalProps {
   open: boolean
@@ -30,25 +43,6 @@ const EMPTY_FORM = {
   folderId: null as number | null,
 }
 
-function buildInitialForm(entry?: DecryptedEntry, generatedPassword?: string) {
-  if (!entry) {
-    return {
-      ...EMPTY_FORM,
-      password: generatedPassword ?? '',
-    }
-  }
-
-  return {
-    title: entry.title,
-    username: entry.username,
-    email: entry.email,
-    password: generatedPassword ?? entry.password,
-    website: entry.website,
-    notes: entry.notes,
-    folderId: entry.folderId,
-  }
-}
-
 export function EntryFormModal({
   open,
   folders,
@@ -58,108 +52,183 @@ export function EntryFormModal({
   onSubmit,
   onOpenGenerator,
 }: EntryFormModalProps) {
-  const [form, setForm] = useState(() => buildInitialForm(entry, generatedPassword))
+  const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [visiblePassword, setVisiblePassword] = useState(false)
-  const idBase = useId()
+
+  // Reset form when modal opens or props change
+  useEffect(() => {
+    if (open) {
+      if (entry) {
+        setForm({
+          title: entry.title,
+          username: entry.username,
+          email: entry.email,
+          password: generatedPassword || entry.password,
+          website: entry.website,
+          notes: entry.notes,
+          folderId: entry.folderId,
+        })
+      } else {
+        setForm({
+          ...EMPTY_FORM,
+          password: generatedPassword || '',
+        })
+      }
+      setVisiblePassword(false)
+    }
+
+  }, [open, entry, generatedPassword])
 
   const updateField = (key: keyof typeof form, value: string | number | null): void => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
   const submit = async (): Promise<void> => {
-    if (!form.title.trim() || !form.password.trim()) {
-      toast.error('Title and password are required')
+    if (!form.title.trim()) {
+      toast.error('Title is required')
+      return
+    }
+    if (!form.password.trim()) {
+      toast.error('Password is required')
       return
     }
 
     setSaving(true)
-    await onSubmit({
-      id: entry?.id,
-      title: form.title.trim(),
-      username: form.username.trim(),
-      email: form.email.trim(),
-      password: form.password,
-      website: form.website.trim(),
-      notes: form.notes.trim(),
-      folderId: form.folderId,
-    })
-    setSaving(false)
-    toast.success(entry ? 'Credential updated' : 'Credential created')
-    onClose()
+    try {
+      toast.promise(onSubmit(form), { loading: 'Saving credential', success: 'Credential saved', error: 'Failed to save credential' })
+      onClose()
+    } catch (error) {
+      toast.error('Failed to save credential')
+    } finally {
+      setSaving(false)
+    }
   }
 
+  const isFormValid = form.title.trim() && form.password.trim()
+
   return (
-    <Modal open={open} title={entry ? 'Edit Credential' : 'Add Credential'} onClose={onClose}>
-      <div className="grid gap-4">
-        <Input label="Title" placeholder="Ex: GitHub" value={form.title} onChange={(event) => updateField('title', event.target.value)} />
-        <div className="grid gap-4 md:grid-cols-2">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-138 max-h-[90vh] overflow-y-auto p-6">
+        <DialogHeader>
+          <DialogTitle>{entry ? 'Edit Credential' : 'Add Credential'}</DialogTitle>
+          <DialogDescription>
+            {entry
+              ? 'Update your credential details below.'
+              : 'Fill in the details to securely store your credential.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4">
           <Input
-            label="Username"
-            placeholder="Optional"
-            value={form.username}
-            onChange={(event) => updateField('username', event.target.value)}
+            label="Title *"
+            placeholder="e.g., GitHub, Gmail, Netflix"
+            value={form.title}
+            onChange={(event) => updateField('title', event.target.value)}
+            required
           />
-          <Input label="Email" placeholder="Optional" value={form.email} onChange={(event) => updateField('email', event.target.value)} />
-        </div>
 
-        <div className="flex flex-col gap-2 text-sm">
-          <span className="font-medium text-foreground">Password</span>
-          <div className="flex gap-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
-              className="w-full "
-              type={visiblePassword ? 'text' : 'password'}
-              value={form.password}
-              onChange={(event) => updateField('password', event.target.value)}
-              placeholder="Required"
+              label="Username"
+              placeholder="Optional"
+              value={form.username}
+              onChange={(event) => updateField('username', event.target.value)}
             />
-            <Button
-              onClick={() => setVisiblePassword((prev) => !prev)}
-              type="button"
-            >
-              {visiblePassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </Button>
-            <CopyButton compact value={form.password} />
-            <Button
-              onClick={onOpenGenerator}
-              title="Open password generator"
-              type="button"
-            >
-              <WandSparkles size={16} />
-            </Button>
+            <Input
+              label="Email"
+              placeholder="Optional"
+              value={form.email}
+              onChange={(event) => updateField('email', event.target.value)}
+            />
           </div>
+
+          {/* Password Field */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Password *</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={visiblePassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(event) => updateField('password', event.target.value)}
+                  placeholder="Required"
+                  className="pr-24"
+                />
+              </div>
+              <Button
+                onClick={() => setVisiblePassword(!visiblePassword)}
+                type="button"
+                variant="outline"
+                size="icon"
+
+                title={visiblePassword ? 'Hide password' : 'Show password'}
+              >
+                {visiblePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </Button>
+              <CopyButton className="h-8" compact value={form.password} />
+              <Button
+                onClick={onOpenGenerator}
+                title="Generate strong password"
+                type="button"
+                variant="outline"
+                size="icon"
+              >
+                <WandSparkles size={16} />
+              </Button>
+            </div>
+          </div>
+
+          <Input
+            label="Website URL"
+            placeholder="https://example.com"
+            value={form.website}
+            onChange={(event) => updateField('website', event.target.value)}
+          />
+
+          {/* Folder Select with shadcn Select */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Folder</Label>
+            <Select
+              value={form.folderId?.toString() ?? 'none'}
+              onValueChange={(value) => updateField('folderId', value === 'none' ? null : Number(value))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No folder (Uncategorized)</SelectItem>
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id.toString()}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Textarea
+            label="Notes"
+            placeholder="Add any additional notes, recovery codes, or important information..."
+            value={form.notes}
+            onChange={(event) => updateField('notes', event.target.value)}
+            rows={3}
+          />
         </div>
 
-        <Input label="Website URL" placeholder="https://example.com" value={form.website} onChange={(event) => updateField('website', event.target.value)} />
-
-        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <Label htmlFor={`${idBase}-folder`} className="font-medium text-foreground">Folder</Label>
-          <select
-            id={`${idBase}-folder`}
-            className="rounded-xl border border-border bg-secondary px-3 py-2 text-foreground focus:border-ring focus:outline-none"
-            value={form.folderId ?? ''}
-            onChange={(event) => updateField('folderId', event.target.value ? Number(event.target.value) : null)}
-          >
-            <option value="">No folder</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <Textarea label="Notes" placeholder="Any important notes" value={form.notes} onChange={(event) => updateField('notes', event.target.value)} />
-
-        <div className="mt-2 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} type="button">
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button disabled={saving || !form.title.trim() || !form.password.trim()} onClick={submit} type="button">
+          <Button
+            disabled={saving || !isFormValid}
+            onClick={submit}
+            type="button"
+          >
             {saving ? 'Saving...' : entry ? 'Save Changes' : 'Create Entry'}
           </Button>
-        </div>
-      </div>
-    </Modal>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

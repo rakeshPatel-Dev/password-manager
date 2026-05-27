@@ -1,4 +1,6 @@
-import { Download, Eraser, FileUp, KeyRound, MoonStar, Timer } from 'lucide-react'
+// SettingsPage.tsx (updated)
+import { Download, FileUp, KeyRound, SunMoon, Timer, AlertTriangle, Shield } from 'lucide-react'
+import { Badge } from '../components/ui/badge'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
@@ -6,6 +8,23 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { CopyButton } from '../components/CopyButton'
 import { useVaultStore } from '../store/useVaultStore'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { ChangeMasterPasswordDialog } from '../components/settings/ChangeMPassDialog'
+import { DeleteAccountDialog } from '@/components/settings/DeleteAccountModal';
+
 
 function downloadJson(content: string): void {
   const blob = new Blob([content], { type: 'application/json' })
@@ -28,22 +47,33 @@ export function SettingsPage() {
   const clearVaultData = useVaultStore((state) => state.clearVaultData)
   const deleteAccount = useVaultStore((state) => state.deleteAccount)
   const changeMasterPassword = useVaultStore((state) => state.changeMasterPassword)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
   const [recoveryKey, setRecoveryKey] = useState('••••-••••-••••-••••')
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [nextPassword, setNextPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showRecoveryKey, setShowRecoveryKey] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleShowRecovery = async (): Promise<void> => {
     const next = await getRecoveryKey()
     setRecoveryKey(next)
-    toast.success('Recovery key displayed')
+    setShowRecoveryKey(true)
+    toast.success('Recovery key displayed - copy it to a safe place')
+
+    // Auto-hide after 30 seconds
+    setTimeout(() => {
+      setShowRecoveryKey(false)
+      setRecoveryKey('••••-••••-••••-••••')
+    }, 30000)
   }
 
   const handleExport = async (): Promise<void> => {
-    const dump = await exportVault()
-    downloadJson(dump)
-    toast.success('Vault exported successfully')
+    try {
+      const dump = await exportVault()
+      downloadJson(dump)
+      toast.success('Vault exported successfully')
+    } catch {
+      toast.error('Failed to export vault')
+    }
   }
 
   const handleImport = async (file: File): Promise<void> => {
@@ -56,166 +86,243 @@ export function SettingsPage() {
     }
   }
 
-  const handleChangeMasterPassword = async (): Promise<void> => {
-    if (!currentPassword || !nextPassword || !confirmPassword) {
-      toast.error('All fields are required')
-      return
-    }
-
-    if (nextPassword !== confirmPassword) {
-      toast.error('New password and confirmation do not match')
-      return
-    }
-
-    const result = await changeMasterPassword(currentPassword, nextPassword)
-    if (!result.ok) {
-      toast.error(result.message)
-      return
-    }
-
-    toast.success(result.message)
-    setCurrentPassword('')
-    setNextPassword('')
-    setConfirmPassword('')
-  }
-
   const handleClearVault = async (): Promise<void> => {
-    if (confirm('Are you sure? This will permanently delete all vault data.')) {
-      await clearVaultData()
-      toast.success('Vault data cleared')
-    }
+    await clearVaultData()
+    toast.success('Vault data cleared')
   }
 
-  const handleDeleteAccount = async (): Promise<void> => {
-    const confirmed = confirm(
-      'Delete my account? This will permanently remove your vault, folders, credentials, recovery key, and account settings from this device.',
-    )
-
-    if (!confirmed) {
-      return
-    }
-
+  const handleDeleteAccount = async () => {
     await deleteAccount()
-    toast.success('Account deleted')
+    toast.success('Account deleted successfully')
   }
 
   return (
-    <section className="grid gap-4">
-      <h1 className="font-display text-2xl text-foreground">Settings</h1>
+    <div className="container mx-auto max-w-3xl space-y-6 py-6">
+      <div className="space-y-1">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your vault security, preferences, and account
+        </p>
+      </div>
 
-          <article className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="mb-3 flex items-center gap-2 font-display text-lg text-foreground">
-              <Timer size={16} /> Auto Lock
-            </h2>
-            <div className="text-sm text-muted-foreground">
-              <Label className="mb-1">Minutes before lock: {settings.autoLockMinutes}</Label>
-              <Input
-                className="mt-2 w-full"
-                max={30}
-                min={1}
-                type="range"
-                value={settings.autoLockMinutes}
-                onChange={(event) => saveSettings({ autoLockMinutes: Number(event.target.value) })}
+      <Separator />
+
+      {/* Preferences Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Timer size={18} />
+            Preferences
+          </CardTitle>
+          <CardDescription>
+            Customize your vault experience
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Auto Lock */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="autoLock" className="text-sm font-medium">
+                Auto Lock Timer
+              </Label>
+              <Badge variant="secondary" className="font-mono">
+                {settings.autoLockMinutes} minute{settings.autoLockMinutes !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            <Slider
+              id="autoLock"
+              value={[settings.autoLockMinutes]}
+              onValueChange={(value) => saveSettings({ autoLockMinutes: value[0] })}
+              min={1}
+              max={30}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Vault will automatically lock after {settings.autoLockMinutes} minute{settings.autoLockMinutes !== 1 ? 's' : ''} of inactivity
+            </p>
+          </div>
+
+          {/* Theme Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="theme" className="text-sm font-medium">
+                Dark Mode
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Toggle between light and dark theme
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <SunMoon size={16} className="text-muted-foreground" />
+              <Switch
+                id="theme"
+                checked={settings.theme === 'dark'}
+                onCheckedChange={() => saveSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
               />
             </div>
-      </article>
+          </div>
+        </CardContent>
+      </Card>
 
-          <article className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="mb-3 flex items-center gap-2 font-display text-lg text-foreground">
-              <MoonStar size={16} /> Theme
-            </h2>
-        <Button
-          onClick={() => saveSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-          type="button"
-          variant="ghost"
-        >
-          Current theme: {settings.theme}
-        </Button>
-      </article>
+      {/* Security Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield size={18} />
+            Security
+          </CardTitle>
+          <CardDescription>
+            Protect your vault with strong passwords and recovery options
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Change Master Password - Using Dialog */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Master Password</h3>
+              <p className="text-xs text-muted-foreground">
+                Change your master password to enhance security
+              </p>
+            </div>
+            <ChangeMasterPasswordDialog onChangePassword={changeMasterPassword}>
+              <Button variant="outline" className="gap-2">
+                <KeyRound size={16} />
+                Change Master Password
+              </Button>
+            </ChangeMasterPasswordDialog>
+          </div>
 
-      <article className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="mb-3 font-display text-lg text-foreground">Change Master PIN</h2>
-        <div className="grid gap-3">
+          <Separator />
+
+          {/* Recovery Key */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Recovery Key</h3>
+                <p className="text-xs text-muted-foreground">
+                  Use this key to recover your vault if you forget your password
+                </p>
+              </div>
+              <Button onClick={handleShowRecovery} type="button" variant="outline" size="sm">
+                <KeyRound size={14} className="mr-2" />
+                {showRecoveryKey ? 'Hide Key' : 'Show Recovery Key'}
+              </Button>
+            </div>
+
+            {showRecoveryKey && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <code className="select-all font-mono text-sm text-foreground break-all">
+                    {recoveryKey}
+                  </code>
+                  <CopyButton value={recoveryKey} />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  ⚠️ Save this key in a secure location. It will not be shown again.
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Management Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download size={18} />
+            Data Management
+          </CardTitle>
+          <CardDescription>
+            Export, import, or clear your vault data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleExport} variant="outline" className="gap-2">
+              <Download size={16} />
+              Export Vault
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="gap-2">
+              <FileUp size={16} />
+              Import Vault
+            </Button>
+            <AlertDialog>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear Vault Data?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete all your credentials, folders, and settings.
+                    This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearVault} className="bg-destructive text-destructive-foreground">
+                    Clear Data
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
           <Input
-            label="Current Master Password"
-            type="password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
+            ref={fileInputRef}
+            accept="application/json"
+            className="hidden"
+            type="file"
+            onChange={async (event) => {
+              const file = event.target.files?.[0]
+              if (file) {
+                await handleImport(file)
+              }
+              event.currentTarget.value = ''
+            }}
           />
-          <Input
-            label="New Master Password"
-            type="password"
-            value={nextPassword}
-            onChange={(event) => setNextPassword(event.target.value)}
-            hint="Use at least 10 characters. Vault data is re-encrypted safely."
-          />
-          <Input
-            label="Confirm New Master Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-          />
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle size={18} />
+            Danger Zone
+          </CardTitle>
+          <CardDescription>
+            Irreversible account actions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className=" text-destructive flex items-center gap-2">
           <div>
-            <Button onClick={handleChangeMasterPassword} type="button">
-              Update Master Password
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="gap-2"
+            >
+              <AlertTriangle size={16} />
+              Delete Account
+            </Button>
+
+            <DeleteAccountDialog
+              open={deleteDialogOpen}
+              onOpenChange={setDeleteDialogOpen}
+              onConfirm={handleDeleteAccount}
+            />
+          </div>
+          <div>
+            <Button
+              variant="destructive"
+              onClick={handleClearVault}
+              className="gap-2"
+            >
+              <AlertTriangle size={16} />
+              Clear Vault
             </Button>
           </div>
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg text-foreground">
-          <KeyRound size={16} /> Recovery Key
-        </h2>
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-3 py-2 font-mono text-sm text-foreground">
-          <span>{recoveryKey}</span>
-          <CopyButton value={recoveryKey} />
-        </div>
-        <Button className="mt-2" onClick={handleShowRecovery} type="button" variant="ghost">
-          Show Recovery Key
-        </Button>
-      </article>
-
-      <article className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="mb-3 font-display text-lg text-foreground">Vault Import / Export</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button  onClick={handleExport}  variant="ghost">
-            <Download size={14} />
-            Export Encrypted Vault
-          </Button>
-          <Button onClick={() => fileInputRef.current?.click()}  variant="ghost">
-            <FileUp size={14} />
-            Import Encrypted Vault
-          </Button>
-          <Button onClick={handleClearVault} variant="outline" className="text-destructive hover:bg-destructive/10">
-            <Eraser size={14} />
-            Clear Vault Data
-          </Button>
-        </div>
-        <Input
-          ref={fileInputRef}
-          accept="application/json"
-          className="hidden"
-          type="file"
-          onChange={async (event) => {
-            const file = event.target.files?.[0]
-            if (file) {
-              await handleImport(file)
-            }
-            event.currentTarget.value = ''
-          }}
-        />
-      </article>
-
-      <article className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="mb-3 font-display text-lg text-foreground">Danger Zone</h2>
-        <p className="text-sm text-muted-foreground">
-          Permanently delete your account and all local data stored on this device.
-        </p>
-        <Button className="mt-3" onClick={handleDeleteAccount} type="button" variant="destructive">
-          Delete My Account
-        </Button>
-      </article>
-    </section>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

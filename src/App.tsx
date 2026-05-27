@@ -83,7 +83,7 @@ function App() {
       <BrowserRouter>
         <ProtectedRoutes />
       </BrowserRouter>
-      <Toaster position="top-right" theme="dark" expand />
+      <Toaster position="top-center" theme="dark" closeButton toastOptions={{ duration: 3000 }} richColors />
     </>
   )
 }
