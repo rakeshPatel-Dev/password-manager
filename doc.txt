@@ -1,0 +1,181 @@
+Build a modern local-first password manager application using React, Vite, TypeScript, Tailwind CSS, and IndexedDB.
+
+The application is for single-user personal use only. Do NOT build multi-user authentication, signup systems, JWT authentication, backend APIs, MongoDB, Express servers, cloud sync, or SaaS architecture.
+
+The application must focus heavily on security, simplicity, and maintainable architecture.
+
+CORE REQUIREMENTS
+
+1. MASTER GATEWAY PASSWORD
+
+* On first launch, ask the user to create a master password.
+* The master password must NEVER be stored directly.
+* Use PBKDF2 or Argon2 to derive a secure encryption key from the master password.
+* Store only derived verification data securely.
+* On every app open, require the master password to unlock the vault.
+* Include a “lock vault” feature.
+* Include auto-lock after inactivity (default 5 minutes).
+* Include a recovery key system instead of email recovery.
+* Generate a recovery key during initial setup and instruct the user to save it safely.
+
+2. ENCRYPTION
+
+* Use the browser Web Crypto API.
+* Use AES-GCM encryption for vault entries.
+* All sensitive data must remain encrypted at rest.
+* Never store plaintext passwords in storage.
+* Never hardcode encryption keys.
+* Never log decrypted passwords to console.
+
+3. STORAGE
+
+* Use IndexedDB for local encrypted storage.
+* Use Dexie.js for IndexedDB abstraction.
+* Structure the database cleanly.
+
+4. VAULT FEATURES
+   Users must be able to:
+
+* Create folders/categories
+* Add entries
+* Edit entries
+* Delete entries
+* Search entries instantly
+* Copy fields with one click
+
+Each vault entry should support:
+
+* title
+* username
+* email
+* password
+* website URL
+* notes
+* folder/category
+* createdAt
+* updatedAt
+
+Support entries that may contain:
+
+* username + password
+* email + password
+* title + password
+* custom combinations
+
+5. COPYABLE UX
+
+* Every important field should have a copy button.
+* Password copy should briefly show success feedback.
+* Clipboard should auto-clear after 30 seconds if possible.
+* Password fields should support show/hide toggle.
+
+6. PASSWORD GENERATOR
+   Include:
+
+* password length slider
+* uppercase toggle
+* lowercase toggle
+* numbers toggle
+* symbols toggle
+* generate button
+* copy generated password button
+
+7. SEARCH SYSTEM
+
+* Real-time search
+* Search by:
+
+  * title
+  * username
+  * email
+  * website
+  * folder/category
+
+8. UI/UX
+
+* Clean minimal modern UI
+* Dark mode by default
+* Responsive layout
+* Sidebar for folders/categories
+* Smooth animations but not overdone
+* Focus on speed and usability
+
+9. SECURITY RULES
+
+* Never expose secrets in frontend constants.
+* Never use localStorage for vault data.
+* Never store master password directly.
+* Keep encryption logic separated from UI logic.
+* Use secure architecture patterns.
+
+10. FOLDER STRUCTURE
+
+Use this structure:
+
+src/
+├── components/
+├── pages/
+├── hooks/
+├── store/
+├── crypto/
+├── database/
+├── utils/
+├── types/
+├── layouts/
+├── features/
+│    ├── vault/
+│    ├── auth/
+│    ├── folders/
+│    └── generator/
+└── App.tsx
+
+11. RECOMMENDED LIBRARIES
+
+* react
+* vite
+* typescript
+* tailwindcss
+* dexie
+* zustand
+* react-router-dom
+* lucide-react
+
+12. IMPORTANT ARCHITECTURE
+    Separate:
+
+* encryption logic
+* database logic
+* UI logic
+* state management
+
+Avoid giant components.
+
+13. INITIAL SCREENS
+    Build:
+
+* setup master password screen
+* unlock vault screen
+* dashboard
+* add/edit credential modal
+* settings page
+* password generator modal
+
+14. SETTINGS PAGE
+    Include:
+
+* auto-lock timer
+* export encrypted vault
+* import encrypted vault
+* clear vault
+* theme toggle
+* recovery key display
+
+15. CODE QUALITY
+
+* Use reusable components.
+* Use TypeScript types everywhere.
+* Avoid duplicated logic.
+* Write scalable and readable code.
+* Prefer composition over giant files.
+
+The final application should feel like a lightweight professional password manager focused on privacy, speed, and local encrypted storage.
