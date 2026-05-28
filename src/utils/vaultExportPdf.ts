@@ -1,5 +1,6 @@
-import jsPDF from 'jspdf'
-import { autoTable } from 'jspdf-autotable'
+// Dynamically imported to avoid large initial bundle cost
+// import jsPDF from 'jspdf'
+// import { autoTable } from 'jspdf-autotable'
 import type { DecryptedEntry, DecryptedFolder } from '../types'
 
 interface VaultExportPdfInput {
@@ -18,7 +19,12 @@ function countEntries(folderId: number, entries: DecryptedEntry[]): string {
   return String(entries.filter((entry) => entry.folderId === folderId).length)
 }
 
-export function downloadVaultPdf({ folders, entries }: VaultExportPdfInput): void {
+export async function downloadVaultPdf({ folders, entries }: VaultExportPdfInput): Promise<void> {
+  const [{ default: jsPDF }, { autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -124,7 +130,7 @@ export function downloadVaultPdf({ folders, entries }: VaultExportPdfInput): voi
     },
   })
 
-  const lastTable = doc as jsPDF & { lastAutoTable?: { finalY: number } }
+  const lastTable = doc as unknown as { lastAutoTable?: { finalY: number } }
   const entriesStartY = lastTable.lastAutoTable?.finalY ?? 210
 
   doc.setTextColor(...inkColor)
