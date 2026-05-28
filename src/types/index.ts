@@ -20,6 +20,15 @@ export interface RecoveryConfig {
   wrappedVaultKey?: EncryptedPayload
 }
 
+export interface PasskeyConfig {
+  version: number
+  createdAt: string
+  credentialId: string
+  salt: string
+  rpId: string
+  wrappedVaultKey: EncryptedPayload
+}
+
 export interface AppSettings {
   autoLockMinutes: number
   clipboardClearSeconds: number
