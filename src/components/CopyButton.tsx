@@ -9,21 +9,22 @@ interface CopyButtonProps {
   seconds?: number
   compact?: boolean
   className?: string
+  onCopy?: () => void
 }
 
-export function CopyButton({ value, seconds = 30, compact = false, className }: CopyButtonProps) {
+export function CopyButton({ value, seconds = 30, compact = false, className, onCopy }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async (): Promise<void> => {
-    toast.promise(copyToClipboard(value, seconds),
-      {
-        loading: 'Copying to clipboard',
-        success: 'Copied to clipboard',
-        error: 'Failed to copy to clipboard'
-      }
-    )
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1200)
+    try {
+      await copyToClipboard(value, seconds)
+      toast.success('Copied to clipboard')
+      setCopied(true)
+      onCopy?.()
+      window.setTimeout(() => setCopied(false), 1200)
+    } catch {
+      toast.error('Failed to copy to clipboard')
+    }
   }
 
   return (

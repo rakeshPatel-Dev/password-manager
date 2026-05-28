@@ -1,20 +1,16 @@
-import { Lock, Settings, Vault, Menu, X, Shield, KeyRound } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { Lock, Settings, Vault, Menu, Shield, KeyRound, BadgeQuestionMark } from 'lucide-react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
 import { useVaultStore } from '../store/useVaultStore'
 import { Button } from '../components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { HelpRequestModal } from '../components/HelpRequestModal'
 
 export function AppShell() {
   const lockVault = useVaultStore((state) => state.lockVault)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const location = useLocation()
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [location])
+  const [helpModalOpen, setHelpModalOpen] = useState(false)
 
   const navItems = [
     { path: '/', label: 'Vault', icon: Vault },
@@ -22,20 +18,20 @@ export function AppShell() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75 shadow-sm">
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-secondary/20">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/75 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           {/* Logo Section */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg ring-1 ring-primary/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/80 shadow-lg ring-1 ring-primary/20">
               <Shield size={20} className="text-primary-foreground" />
             </div>
             <div className="min-w-0">
               <h1 className="font-display text-base font-semibold tracking-tight text-foreground md:text-xl">
-                CipherNest
+                PassVault
               </h1>
               <p className="hidden text-xs text-muted-foreground sm:block">
-                Secure Local-First Vault
+                Secure password with local-first encryption
               </p>
             </div>
           </div>
@@ -57,11 +53,10 @@ export function AppShell() {
               >
                 <item.icon size={16} className="transition-transform group-hover:scale-105" />
                 <span>{item.label}</span>
-                {({ isActive }) => isActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-                )}
               </NavLink>
             ))}
+
+
 
             <div className="ml-4 border-l border-border pl-4">
               <Button
@@ -75,10 +70,32 @@ export function AppShell() {
                 <span>Lock</span>
               </Button>
             </div>
+            <div className="ml-4 border-l border-border pl-4">
+              <Button
+                onClick={() => setHelpModalOpen(true)}
+                size="sm"
+                title="Get help"
+                variant="outline"
+                className="gap-2 transition-all duration-200 hover:shadow-md"
+                aria-label="Get help"
+              >
+                <BadgeQuestionMark size={16} />
+              </Button>
+            </div>
           </nav>
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-2 md:hidden">
+            <Button
+              onClick={() => setHelpModalOpen(true)}
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              aria-label="Get help"
+            >
+              <BadgeQuestionMark size={16} />
+            </Button>
+
             <Button
               onClick={lockVault}
               size="sm"
@@ -95,14 +112,14 @@ export function AppShell() {
                   <Menu size={20} />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
+              <SheetContent side="right" className="w-70 sm:w-88">
                 <div className="flex flex-col h-full">
-                  <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80">
+                  <div className="flex items-center gap-3 border-b border-border p-4 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/80">
                       <Shield size={20} className="text-primary-foreground" />
                     </div>
                     <div>
-                      <p className="font-display font-semibold text-foreground">CipherNest</p>
+                      <p className="font-display font-semibold text-foreground">PassVault</p>
                       <p className="text-xs text-muted-foreground">Secure Password Vault</p>
                     </div>
                   </div>
@@ -159,6 +176,8 @@ export function AppShell() {
           </p>
         </div>
       </footer>
+
+      <HelpRequestModal open={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
     </div>
   )
 }

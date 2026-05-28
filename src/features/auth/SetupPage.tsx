@@ -12,16 +12,33 @@ import { Progress } from '@/components/ui/progress'
 
 interface SetupPageProps {
   onSetup: (password: string) => Promise<string>
+  onCompleteSetup: () => Promise<void>
 }
 
-export function SetupPage({ onSetup }: SetupPageProps) {
+const PENDING_RECOVERY_KEY_STORAGE = 'password-manager-pending-recovery-key'
+
+function downloadRecoveryKey(recoveryKey: string): void {
+  const blob = new Blob([`Recovery Key\n\n${recoveryKey}\n`], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `recovery-key-${Date.now()}.txt`
+  document.body.append(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
+export function SetupPage({ onSetup, onCompleteSetup }: SetupPageProps) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [recoveryKey, setRecoveryKey] = useState('')
+  const [recoveryKey, setRecoveryKey] = useState(() => window.localStorage.getItem(PENDING_RECOVERY_KEY_STORAGE) ?? '')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState(0)
   const [isCopied, setIsCopied] = useState(false)
+  const [isDownloaded, setIsDownloaded] = useState(false)
+  const [isBackupConfirmed, setIsBackupConfirmed] = useState(false)
 
   const checkPasswordStrength = (pass: string) => {
     let strength = 0
@@ -77,7 +94,10 @@ export function SetupPage({ onSetup }: SetupPageProps) {
     setLoading(true)
     try {
       const generatedRecoveryKey = await onSetup(password)
+      window.localStorage.setItem(PENDING_RECOVERY_KEY_STORAGE, generatedRecoveryKey)
       setRecoveryKey(generatedRecoveryKey)
+      setIsBackupConfirmed(false)
+      setIsDownloaded(false)
       toast.success('Vault initialized successfully!')
     } catch (error) {
       toast.error('Failed to initialize vault')
@@ -91,13 +111,40 @@ export function SetupPage({ onSetup }: SetupPageProps) {
     setTimeout(() => setIsCopied(false), 2000)
   }
 
+  const handleDownload = () => {
+    if (!recoveryKey) {
+      toast.error('Recovery key is not available yet')
+      return
+    }
+
+    downloadRecoveryKey(recoveryKey)
+    setIsDownloaded(true)
+    toast.success('Recovery key downloaded')
+  }
+
+  const handleContinue = async (): Promise<void> => {
+    if (!recoveryKey) {
+      return
+    }
+
+    if (!isCopied && !isDownloaded) {
+      toast.error('Copy or download your recovery key before continuing')
+      return
+    }
+
+    setIsBackupConfirmed(true)
+    await onCompleteSetup()
+    window.localStorage.removeItem(PENDING_RECOVERY_KEY_STORAGE)
+  }
+
   const isValid = password && confirmPassword && password === confirmPassword && password.length >= 10
+  const isBackupReady = Boolean(recoveryKey) && (isCopied || isDownloaded)
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-secondary/20 p-4">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/80 shadow-lg">
             <ShieldCheck size={28} className="text-primary-foreground" />
           </div>
           <CardTitle className="font-display text-2xl tracking-tight">
@@ -243,6 +290,44 @@ export function SetupPage({ onSetup }: SetupPageProps) {
                     <CopyButton value={recoveryKey} onCopy={handleCopy} />
                   </div>
                 </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant={isCopied ? 'default' : 'outline'} onClick={handleCopy}>
+                    {isCopied ? 'Copied' : 'Copy Recovery Key'}
+                  </Button>
+                  <Button type="button" variant={isDownloaded ? 'default' : 'outline'} onClick={handleDownload}>
+                    {isDownloaded ? 'Downloaded' : 'Download Recovery Key'}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-background/80 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+                  <Label className="mb-2 block text-sm text-amber-900 dark:text-amber-200">
+                    Confirm backup
+                  </Label>
+                  <Button
+                    type="button"
+                    variant={isBackupConfirmed ? 'default' : 'outline'}
+                    disabled={!isBackupReady}
+                    aria-pressed={isBackupConfirmed}
+                    onClick={() => setIsBackupConfirmed((current) => !current)}
+                    className="w-full justify-start"
+                  >
+                    {isBackupConfirmed
+                      ? 'Recovery key backed up'
+                      : 'I have copied or downloaded my recovery key'}
+                  </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={!isBackupConfirmed}
+                  onClick={() => {
+                    void handleContinue()
+                  }}
+                >
+                  {isBackupConfirmed ? 'Continue to Vault' : 'Save Your Recovery Key First'}
+                </Button>
 
                 <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />

@@ -2,7 +2,7 @@ import { FolderCheck, FolderPen, FolderPlus, Trash2, FolderOpen, Folder, Chevron
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
-import type { DecryptedFolder } from '../../types'
+import type { DecryptedEntry, DecryptedFolder } from '../../types'
 import {
   InputGroup,
   InputGroupAddon,
@@ -12,9 +12,11 @@ import {
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { Kbd } from '@/components/ui/kbd';
 
 interface FolderSidebarProps {
   folders: DecryptedFolder[]
+  entries: DecryptedEntry[]
   selectedFolderId: number | 'all'
   onSelect: (id: number | 'all') => void
   onAddFolder: (name: string) => Promise<void>
@@ -24,6 +26,7 @@ interface FolderSidebarProps {
 
 export function FolderSidebar({
   folders,
+  entries,
   selectedFolderId,
   onSelect,
   onAddFolder,
@@ -112,6 +115,10 @@ export function FolderSidebar({
     setEditingName('')
   }, [])
 
+  const getFolderEntryCount = useCallback((folderId: number) => {
+    return entries.filter((entry) => entry.folderId === folderId).length
+  }, [entries])
+
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, action: () => void) => {
     if (e.key === 'Enter') {
@@ -129,16 +136,6 @@ export function FolderSidebar({
           <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
             Folders
           </h2>
-          <Button
-            onClick={() => onSelect('all')}
-            variant={selectedFolderId === 'all' ? 'default' : 'outline'}
-            size="sm"
-            className="gap-1"
-            aria-label="Show all entries"
-          >
-            <FolderOpen size={14} />
-            All
-          </Button>
         </div>
 
         <Separator className="my-3" />
@@ -176,6 +173,21 @@ export function FolderSidebar({
 
         {/* Folders List */}
         <div className="space-y-2">
+
+          <div className="flex items-center gap-2 justify-between">
+            <h2 className=" text-muted-foreground text-sm">Filter by folder</h2>
+            <Button
+              onClick={() => onSelect('all')}
+              variant={selectedFolderId === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="gap-1"
+              aria-label="Show all entries"
+            >
+              <FolderOpen size={10} />
+              All
+            </Button>
+          </div>
+
           {folders.length === 0 ? (
             <div className="py-8 text-center">
               <Folder className="mx-auto h-8 w-8 text-muted-foreground/40" />
@@ -245,7 +257,10 @@ export function FolderSidebar({
                             selectedFolderId === folder.id && "rotate-90 text-primary"
                           )}
                         />
-                        <span className="truncate">{folder.name}</span>
+                        <span className="truncate flex items-center gap-1">
+                          {folder.name}
+                          <Kbd>{getFolderEntryCount(folder.id)}</Kbd>
+                        </span>
                       </Button>
 
                       <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

@@ -8,46 +8,27 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { CopyButton } from '../components/CopyButton'
 import { useVaultStore } from '../store/useVaultStore'
+import { downloadVaultPdf } from '../utils/vaultExportPdf'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { ChangeMasterPasswordDialog } from '../components/settings/ChangeMPassDialog'
-import { DeleteAccountDialog } from '@/components/settings/DeleteAccountModal';
-
-
-function downloadJson(content: string): void {
-  const blob = new Blob([content], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `ciphernest-export-${Date.now()}.json`
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
-}
+import { DeleteAccountDialog } from '@/components/settings/DeleteAccountModal'
 
 export function SettingsPage() {
   const settings = useVaultStore((state) => state.settings)
+  const folders = useVaultStore((state) => state.folders)
+  const entries = useVaultStore((state) => state.entries)
   const saveSettings = useVaultStore((state) => state.saveSettings)
   const getRecoveryKey = useVaultStore((state) => state.getRecoveryKey)
-  const exportVault = useVaultStore((state) => state.exportVault)
+  const registerPasskey = useVaultStore((state) => state.registerPasskey)
   const importVault = useVaultStore((state) => state.importVault)
   const clearVaultData = useVaultStore((state) => state.clearVaultData)
   const deleteAccount = useVaultStore((state) => state.deleteAccount)
   const changeMasterPassword = useVaultStore((state) => state.changeMasterPassword)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false)
 
   const [recoveryKey, setRecoveryKey] = useState('••••-••••-••••-••••')
   const [showRecoveryKey, setShowRecoveryKey] = useState(false)
@@ -68,9 +49,8 @@ export function SettingsPage() {
 
   const handleExport = async (): Promise<void> => {
     try {
-      const dump = await exportVault()
-      downloadJson(dump)
-      toast.success('Vault exported successfully')
+      downloadVaultPdf({ folders, entries })
+      toast.success('Vault PDF exported successfully')
     } catch {
       toast.error('Failed to export vault')
     }
@@ -87,13 +67,43 @@ export function SettingsPage() {
   }
 
   const handleClearVault = async (): Promise<void> => {
-    await clearVaultData()
-    toast.success('Vault data cleared')
+    toast("Do you want to clear all vault data? ",
+      {
+        description: "This action cannot be undone.",
+        action: {
+          label: "Clear Data",
+          onClick: async () => {
+            await clearVaultData()
+            toast.success('Vault data cleared')
+          }
+        },
+        cancel: {
+          label: "Cancel",
+          onClick: () => {
+            toast.dismiss()
+          }
+        }
+      }
+    )
   }
 
   const handleDeleteAccount = async () => {
     await deleteAccount()
     toast.success('Account deleted successfully')
+  }
+
+  const handleRegisterPasskey = async (): Promise<void> => {
+    setIsRegisteringPasskey(true)
+    try {
+      const result = await registerPasskey()
+      if (result.ok) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    } finally {
+      setIsRegisteringPasskey(false)
+    }
   }
 
   return (
@@ -177,6 +187,28 @@ export function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Passkey Section */}
+          <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Passkey Login</h3>
+              <p className="text-xs text-muted-foreground">
+                Create a local passkey on this device so you can unlock without typing the master password.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={isRegisteringPasskey}
+              onClick={() => {
+                void handleRegisterPasskey()
+              }}
+            >
+              <KeyRound size={16} />
+              {isRegisteringPasskey ? 'Creating Passkey...' : 'Create Passkey'}
+            </Button>
+          </div>
+
           {/* Change Master Password - Using Dialog */}
           <div className="space-y-3">
             <div>
@@ -235,36 +267,19 @@ export function SettingsPage() {
             Data Management
           </CardTitle>
           <CardDescription>
-            Export, import, or clear your vault data
+            Export a styled PDF backup or import data.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3">
             <Button onClick={handleExport} variant="outline" className="gap-2">
               <Download size={16} />
-              Export Vault
+              Export PDF
             </Button>
             <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="gap-2">
               <FileUp size={16} />
               Import Vault
             </Button>
-            <AlertDialog>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clear Vault Data?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will permanently delete all your credentials, folders, and settings.
-                    This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearVault} className="bg-destructive text-destructive-foreground">
-                    Clear Data
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
 
           <Input

@@ -46,7 +46,9 @@ function App() {
   const settings = useVaultStore((state) => state.settings)
   const bootstrap = useVaultStore((state) => state.bootstrap)
   const setupVault = useVaultStore((state) => state.setupVault)
+  const completeVaultSetup = useVaultStore((state) => state.completeVaultSetup)
   const unlockVault = useVaultStore((state) => state.unlockVault)
+  const unlockVaultWithPasskey = useVaultStore((state) => state.unlockVaultWithPasskey)
   const resetVaultWithRecoveryKey = useVaultStore((state) => state.resetVaultWithRecoveryKey)
   const lockVault = useVaultStore((state) => state.lockVault)
   const touch = useVaultStore((state) => state.touch)
@@ -71,11 +73,11 @@ function App() {
   }
 
   if (!isConfigured) {
-    return <SetupPage onSetup={setupVault} />
+    return <SetupPage onSetup={setupVault} onCompleteSetup={completeVaultSetup} />
   }
 
   if (!isUnlocked) {
-    return <UnlockPage onUnlock={unlockVault} onReset={resetVaultWithRecoveryKey} />
+    return <UnlockPage onUnlock={unlockVault} onPasskeyUnlock={unlockVaultWithPasskey} onReset={resetVaultWithRecoveryKey} />
   }
 
   return (

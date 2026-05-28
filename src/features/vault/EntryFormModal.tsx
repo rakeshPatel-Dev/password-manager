@@ -7,6 +7,7 @@ import { CopyButton } from '../../components/CopyButton'
 import type { DecryptedEntry, DecryptedFolder } from '../../types'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '../../components/ui/label'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ interface EntryFormModalProps {
 }
 
 const EMPTY_FORM = {
+  id: undefined as number | undefined,
   title: '',
   username: '',
   email: '',
@@ -41,6 +43,10 @@ const EMPTY_FORM = {
   website: '',
   notes: '',
   folderId: null as number | null,
+}
+
+function stripWebsiteProtocol(value: string): string {
+  return value.replace(/^https?:\/\//i, '')
 }
 
 export function EntryFormModal({
@@ -59,29 +65,38 @@ export function EntryFormModal({
   // Reset form when modal opens or props change
   useEffect(() => {
     if (open) {
-      if (entry) {
-        setForm({
-          title: entry.title,
-          username: entry.username,
-          email: entry.email,
-          password: generatedPassword || entry.password,
-          website: entry.website,
-          notes: entry.notes,
-          folderId: entry.folderId,
-        })
-      } else {
-        setForm({
-          ...EMPTY_FORM,
-          password: generatedPassword || '',
-        })
-      }
-      setVisiblePassword(false)
+      const resetTimer = window.setTimeout(() => {
+        setVisiblePassword(false)
+
+        if (entry) {
+          setForm({
+            id: entry.id,
+            title: entry.title,
+            username: entry.username,
+            email: entry.email,
+            password: generatedPassword || entry.password,
+            website: stripWebsiteProtocol(entry.website),
+            notes: entry.notes,
+            folderId: entry.folderId,
+          })
+        } else {
+          setForm({
+            ...EMPTY_FORM,
+            password: generatedPassword || '',
+          })
+        }
+      }, 0)
+
+      return () => window.clearTimeout(resetTimer)
     }
 
   }, [open, entry, generatedPassword])
 
   const updateField = (key: keyof typeof form, value: string | number | null): void => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => ({
+      ...prev,
+      [key]: key === 'website' && typeof value === 'string' ? stripWebsiteProtocol(value) : value,
+    }))
   }
 
   const submit = async (): Promise<void> => {
@@ -98,7 +113,7 @@ export function EntryFormModal({
     try {
       toast.promise(onSubmit(form), { loading: 'Saving credential', success: 'Credential saved', error: 'Failed to save credential' })
       onClose()
-    } catch (error) {
+    } catch {
       toast.error('Failed to save credential')
     } finally {
       setSaving(false)
@@ -179,12 +194,21 @@ export function EntryFormModal({
             </div>
           </div>
 
-          <Input
-            label="Website URL"
-            placeholder="https://example.com"
-            value={form.website}
-            onChange={(event) => updateField('website', event.target.value)}
-          />
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Website URL</Label>
+            <InputGroup className="h-8">
+              <InputGroupAddon align="inline-start" className="pl-3 pr-2 text-sm font-medium text-muted-foreground">
+                https://
+              </InputGroupAddon>
+              <InputGroupInput
+                autoComplete="url"
+                inputMode="url"
+                placeholder="facebook.com"
+                value={form.website}
+                onChange={(event) => updateField('website', event.target.value)}
+              />
+            </InputGroup>
+          </div>
 
           {/* Folder Select with shadcn Select */}
           <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { Lock, ShieldAlert, KeyRound, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { Lock, ShieldAlert, KeyRound, Eye, EyeOff, UserKey } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
@@ -9,10 +9,11 @@ import { Progress } from '@/components/ui/progress'
 
 interface UnlockPageProps {
   onUnlock: (password: string) => Promise<boolean>
+  onPasskeyUnlock: () => Promise<boolean>
   onReset: (recoveryKey: string, nextPassword: string) => Promise<{ ok: boolean; message: string }>
 }
 
-export function UnlockPage({ onUnlock, onReset }: UnlockPageProps) {
+export function UnlockPage({ onUnlock, onPasskeyUnlock, onReset }: UnlockPageProps) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [recoveryOpen, setRecoveryOpen] = useState(false)
@@ -67,6 +68,18 @@ export function UnlockPage({ onUnlock, onReset }: UnlockPageProps) {
     setLoading(false)
   }
 
+  const submitPasskeyUnlock = async (): Promise<void> => {
+    setLoading(true)
+    try {
+      const ok = await onPasskeyUnlock()
+      if (!ok) {
+        toast.error('Passkey unlock was not completed')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const submitRecoveryReset = async (): Promise<void> => {
     if (!recoveryKey.trim()) {
       toast.error('Recovery key is required')
@@ -102,10 +115,10 @@ export function UnlockPage({ onUnlock, onReset }: UnlockPageProps) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-secondary/20 p-4">
+      <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/80 shadow-lg">
             <Lock size={28} className="text-primary-foreground" />
           </div>
           <CardTitle className="font-display text-2xl tracking-tight">PassVault</CardTitle>
@@ -116,7 +129,7 @@ export function UnlockPage({ onUnlock, onReset }: UnlockPageProps) {
 
         <CardContent className="space-y-4">
           {/* Unlock Form */}
-          <form onSubmit={submitUnlock} className="space-y-4">
+          <form onSubmit={submitUnlock} className="space-y-4 p-4">
             <div className="relative">
               <Input
                 label="Master Password"
@@ -140,9 +153,24 @@ export function UnlockPage({ onUnlock, onReset }: UnlockPageProps) {
               </Button>
             </div>
 
-            <Button type="submit" disabled={loading || !password} className="w-full">
-              {loading ? 'Unlocking...' : 'Unlock Vault'}
-            </Button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+
+              <Button type="submit" disabled={loading || !password} className="flex-1">
+                {loading ? 'Unlocking...' : 'Unlock Vault'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                disabled={loading}
+                onClick={() => {
+                  void submitPasskeyUnlock()
+                }}
+              >
+                <UserKey size={16} />
+                Use Passkey
+              </Button>
+            </div>
           </form>
 
           {/* Divider */}

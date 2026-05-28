@@ -1,4 +1,4 @@
-import { PackagePlus, Search, WandSparkles, FolderKanban, KeyRound, Inbox } from 'lucide-react'
+import { PackagePlus, Search, WandSparkles, FolderKanban, KeyRound, Inbox, Eye, EyeOff } from 'lucide-react'
 import { useMemo, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
@@ -55,6 +55,7 @@ export function DashboardPage() {
   const [generatorOpen, setGeneratorOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<DecryptedEntry | undefined>(undefined)
   const [generatedPassword, setGeneratedPassword] = useState('')
+  const [showStats, setShowStats] = useState(true)
 
   // Handlers with useCallback for stability
   const handleDeleteEntry = useCallback(async (id: number): Promise<void> => {
@@ -136,6 +137,7 @@ export function DashboardPage() {
           <aside className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
             <FolderSidebar
               folders={folders}
+              entries={entries}
               selectedFolderId={selectedFolderId}
               onSelect={setSelectedFolderId}
               onAddFolder={addFolder}
@@ -180,25 +182,45 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <StatCard
-                    icon={<KeyRound size={24} />}
-                    label="Total Entries"
-                    value={stats.totalEntries}
-                  />
-                  <StatCard
-                    icon={<FolderKanban size={24} />}
-                    label="Folders"
-                    value={stats.totalFolders}
-                  />
-                  <StatCard
-                    icon={<Inbox size={24} />}
-                    label="Uncategorized"
-                    value={stats.uncategorized}
-                    variant={stats.uncategorized > 0 ? 'warning' : 'default'}
-                  />
+                <div className="mb-6 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Stats</p>
+                    <p className="text-xs text-muted-foreground">
+                      {showStats ? 'Quick vault summary is visible.' : 'Vault summary is hidden.'}
+                    </p>
+                  </div>
+                  <Button
+                    aria-label={showStats ? 'Hide stats' : 'View stats'}
+                    onClick={() => setShowStats((prev) => !prev)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {showStats ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <span>{showStats ? 'Hide stats' : 'View stats'}</span>
+                  </Button>
                 </div>
+
+                {showStats && (
+                  <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <StatCard
+                      icon={<KeyRound size={24} />}
+                      label="Total Entries"
+                      value={stats.totalEntries}
+                    />
+                    <StatCard
+                      icon={<FolderKanban size={24} />}
+                      label="Folders"
+                      value={stats.totalFolders}
+                    />
+                    <StatCard
+                      icon={<Inbox size={24} />}
+                      label="Uncategorized"
+                      value={stats.uncategorized}
+                      variant={stats.uncategorized > 0 ? 'warning' : 'default'}
+                    />
+                  </div>
+                )}
 
                 {/* Search Bar */}
                 <div className="relative">

@@ -67,6 +67,10 @@ async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', toArrayBuffer(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
 }
 
+export async function importRawAesKey(raw: Uint8Array): Promise<CryptoKey> {
+  return importAesKey(raw)
+}
+
 export async function createVaultKey(): Promise<CryptoKey> {
   return crypto.subtle.generateKey({ name: 'AES-GCM', length: KEY_BITS }, true, ['encrypt', 'decrypt'])
 }
