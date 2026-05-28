@@ -8,6 +8,7 @@ import {
   completeVaultSetup as completeVaultSetupService,
   getRecoveryKey as getRecoveryKeyService,
   registerPasskey as registerPasskeyService,
+  unregisterPasskey as unregisterPasskeyService,
   resetVaultWithRecoveryKey as resetVaultWithRecoveryKeyService,
   setupVault as setupVaultService,
   unlockVault as unlockVaultService,
@@ -33,6 +34,7 @@ interface VaultStoreActions {
   unlockVaultWithPasskey: () => Promise<boolean>
   changeMasterPassword: (currentPassword: string, nextPassword: string) => Promise<{ ok: boolean; message: string }>
   registerPasskey: () => Promise<{ ok: boolean; message: string }>
+  unregisterPasskey: () => Promise<{ ok: boolean; message: string }>
   lockVault: () => void
   touch: () => void
   setSearchTerm: (value: string) => void
@@ -83,6 +85,7 @@ export const useVaultStore = create<VaultStore>((set, get) => {
     changeMasterPassword: (currentPassword, nextPassword) =>
       changeMasterPasswordService(context, currentPassword, nextPassword),
     registerPasskey: () => registerPasskeyService(context),
+    unregisterPasskey: () => unregisterPasskeyService(context),
     lockVault: () => {
       set({
         isUnlocked: false,

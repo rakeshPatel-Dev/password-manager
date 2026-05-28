@@ -15,7 +15,7 @@ import {
 } from '../crypto/vaultCrypto'
 import { db } from '../database/db'
 import { getMeta, removeMeta, setMeta } from '../database/meta'
-import type { PasskeyConfig, RecoveryConfig } from '../types'
+import type { PasskeyConfig, RecoveryConfig, AuthConfig, AppSettings } from '../types'
 import { DEFAULT_SETTINGS, META_KEYS } from './vaultStore.shared'
 import type { VaultStoreContext } from './vaultStore.shared'
 import { getMasterVaultKey, loadVaultContents, setMasterVaultKey } from './vaultPersistence.service'
@@ -65,9 +65,9 @@ function readPasskeyPrfBytes(credential: PublicKeyCredential): Uint8Array | null
 
 export async function bootstrapVault(context: VaultStoreContext): Promise<void> {
   const [authConfig, recoveryConfig, settings, passkeyConfig] = await Promise.all([
-    getMeta(META_KEYS.auth),
-    getMeta(META_KEYS.recovery),
-    getMeta(META_KEYS.settings),
+    getMeta<AuthConfig>(META_KEYS.auth),
+    getMeta<RecoveryConfig>(META_KEYS.recovery),
+    getMeta<AppSettings>(META_KEYS.settings),
     getMeta<PasskeyConfig>(META_KEYS.passkey),
   ])
   const setupPending = await getMeta<boolean>(META_KEYS.setupPending)
@@ -139,13 +139,13 @@ export async function registerPasskey(context: VaultStoreContext): Promise<{ ok:
   const passkeySalt = generateChallenge()
   const credential = await navigator.credentials.create({
     publicKey: {
-      challenge,
+      challenge: challenge as unknown as BufferSource,
       rp: {
         name: 'PassVault',
         id: PASSKEY_RP_ID,
       },
       user: {
-        id: challenge,
+        id: challenge as unknown as BufferSource,
         name: 'local-user',
         displayName: 'PassVault User',
       },
@@ -158,7 +158,7 @@ export async function registerPasskey(context: VaultStoreContext): Promise<{ ok:
       extensions: {
         prf: {
           eval: {
-            first: passkeySalt,
+            first: passkeySalt as unknown as BufferSource,
           },
         },
       },
@@ -170,12 +170,12 @@ export async function registerPasskey(context: VaultStoreContext): Promise<{ ok:
     return { ok: false, message: 'Passkey registration was cancelled.' }
   }
 
-  const prfBytes = readPasskeyPrfBytes(credential)
+  const prfBytes = readPasskeyPrfBytes(credential as PublicKeyCredential)
   if (!prfBytes) {
     return { ok: false, message: 'This browser or passkey does not support local PRF passkeys.' }
   }
 
-  const credentialId = bytesToBase64Url(new Uint8Array(credential.rawId))
+  const credentialId = bytesToBase64Url(new Uint8Array((credential as PublicKeyCredential).rawId))
   const wrappingKey = await importRawAesKey(prfBytes)
   const wrappedVaultKey = await wrapVaultKeyForMaster(state.key, wrappingKey)
   const passkeyConfig: PasskeyConfig = {
@@ -204,12 +204,12 @@ export async function unlockVaultWithPasskey(context: VaultStoreContext): Promis
 
   const credential = await navigator.credentials.get({
     publicKey: {
-      challenge: generateChallenge(),
+      challenge: generateChallenge() as unknown as BufferSource,
       timeout: 60000,
       userVerification: 'preferred',
       allowCredentials: [
         {
-          id: base64UrlToBytes(passkeyConfig.credentialId),
+          id: base64UrlToBytes(passkeyConfig.credentialId) as unknown as BufferSource,
           type: 'public-key',
         },
       ],
@@ -217,7 +217,7 @@ export async function unlockVaultWithPasskey(context: VaultStoreContext): Promis
       extensions: {
         prf: {
           eval: {
-            first: base64UrlToBytes(passkeyConfig.salt),
+            first: base64UrlToBytes(passkeyConfig.salt) as unknown as BufferSource,
           },
         },
       },
@@ -228,7 +228,7 @@ export async function unlockVaultWithPasskey(context: VaultStoreContext): Promis
     return false
   }
 
-  const prfBytes = readPasskeyPrfBytes(credential)
+  const prfBytes = readPasskeyPrfBytes(credential as PublicKeyCredential)
   if (!prfBytes) {
     return false
   }
@@ -246,6 +246,25 @@ export async function unlockVaultWithPasskey(context: VaultStoreContext): Promis
   })
 
   return true
+}
+
+export async function unregisterPasskey(context: VaultStoreContext): Promise<{ ok: boolean; message: string }> {
+  const passkeyConfig = await getMeta<PasskeyConfig>(META_KEYS.passkey)
+  if (!passkeyConfig) {
+    return { ok: false, message: 'No passkey is registered on this device.' }
+  }
+
+  try {
+    await Promise.all([
+      removeMeta(META_KEYS.passkey),
+      db.passkeys.delete(passkeyConfig.credentialId),
+    ])
+
+    context.set({ passkeyConfig: null })
+    return { ok: true, message: 'Passkey removed.' }
+  } catch (err) {
+    return { ok: false, message: 'Failed to remove passkey.' }
+  }
 }
 
 export async function unlockVault(context: VaultStoreContext, password: string): Promise<boolean> {

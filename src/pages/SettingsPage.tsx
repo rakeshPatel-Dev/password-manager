@@ -23,12 +23,15 @@ export function SettingsPage() {
   const saveSettings = useVaultStore((state) => state.saveSettings)
   const getRecoveryKey = useVaultStore((state) => state.getRecoveryKey)
   const registerPasskey = useVaultStore((state) => state.registerPasskey)
+  const unregisterPasskey = useVaultStore((state) => state.unregisterPasskey)
+  const passkeyConfig = useVaultStore((state) => state.passkeyConfig)
   const importVault = useVaultStore((state) => state.importVault)
   const clearVaultData = useVaultStore((state) => state.clearVaultData)
   const deleteAccount = useVaultStore((state) => state.deleteAccount)
   const changeMasterPassword = useVaultStore((state) => state.changeMasterPassword)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false)
+  const [isRemovingPasskey, setIsRemovingPasskey] = useState(false)
 
   const [recoveryKey, setRecoveryKey] = useState('••••-••••-••••-••••')
   const [showRecoveryKey, setShowRecoveryKey] = useState(false)
@@ -49,9 +52,10 @@ export function SettingsPage() {
 
   const handleExport = async (): Promise<void> => {
     try {
-      downloadVaultPdf({ folders, entries })
+      await downloadVaultPdf({ folders, entries })
       toast.success('Vault PDF exported successfully')
-    } catch {
+    } catch (err) {
+      console.error(err)
       toast.error('Failed to export vault')
     }
   }
@@ -195,18 +199,50 @@ export function SettingsPage() {
                 Create a local passkey on this device so you can unlock without typing the master password.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              disabled={isRegisteringPasskey}
-              onClick={() => {
-                void handleRegisterPasskey()
-              }}
-            >
-              <KeyRound size={16} />
-              {isRegisteringPasskey ? 'Creating Passkey...' : 'Create Passkey'}
-            </Button>
+            {!passkeyConfig ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={isRegisteringPasskey}
+                onClick={() => {
+                  void handleRegisterPasskey()
+                }}
+              >
+                <KeyRound size={16} />
+                {isRegisteringPasskey ? 'Creating Passkey...' : 'Create Passkey'}
+              </Button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Passkey enabled on this device</div>
+                  <div className="text-xs text-muted-foreground">
+                    Created: {new Date(passkeyConfig.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isRemovingPasskey}
+                  onClick={async () => {
+                    setIsRemovingPasskey(true)
+                    try {
+                      const res = await unregisterPasskey()
+                      if (res.ok) {
+                        toast.success(res.message)
+                      } else {
+                        toast.error(res.message)
+                      }
+                    } finally {
+                      setIsRemovingPasskey(false)
+                    }
+                  }}
+                >
+                  Remove Passkey
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Change Master Password - Using Dialog */}
