@@ -21,7 +21,7 @@ export function UnlockPage({ onUnlock, onPasskeyUnlock, onReset }: UnlockPagePro
   const [nextPassword, setNextPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showRecoveryPassword, setShowRecoveryPassword] = useState(false)
+  const [showRecoveryPassword] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState(0)
 
@@ -255,8 +255,10 @@ export function UnlockPage({ onUnlock, onPasskeyUnlock, onReset }: UnlockPagePro
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="Confirm your new password"
-                    error={confirmPassword && nextPassword !== confirmPassword ? "Passwords don't match" : undefined}
                   />
+                  {confirmPassword && nextPassword !== confirmPassword && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
 
                   <div className="flex gap-2">
                     <Button
